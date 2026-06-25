@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -180,9 +182,8 @@ fun MainApp(viewModel: PodcastViewModel) {
         return
     }
 
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var currentScreen by remember { mutableStateOf("FEED") }
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     var selectedSubscriptionToUnsubscribe by remember { mutableStateOf<Subscription?>(null) }
     
     val subscriptions by viewModel.subscriptions.collectAsState()
@@ -211,68 +212,20 @@ fun MainApp(viewModel: PodcastViewModel) {
         )
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                Text("Subscriptions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
-                LazyColumn {
-                    items(subscriptions.sortedBy { it.title.lowercase() }) { sub ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedSubscriptionToUnsubscribe = sub }
-                                .padding(16.dp)
-                        ) {
-                            Text(text = sub.title, modifier = Modifier.weight(1f))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            
-                            val rssUrl = sub.rssUrl
-                            val sourceType = when {
-                                rssUrl.contains("youtube.com") -> "YTB"
-                                rssUrl.contains("api.xdio.ca") || rssUrl.contains("ohdio") -> "OHD"
-                                else -> "POD"
-                            }
-                            
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = Color.Transparent,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface)
-                            ) {
-                                Text(
-                                    text = sourceType,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp)
-                                )
-                            }
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    val titleText = when (pagerState.currentPage) {
+                        0 -> "Abonnements"
+                        1 -> "Épisodes"
+                        else -> "Recherche"
                     }
+                    Text(titleText) 
                 }
-            }
-        }
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(if (currentScreen == "FEED") "Episodes" else "Search") },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
-                        }
-                    }
-                )
-            },
-            floatingActionButton = {
-                if (currentScreen == "FEED") {
-                    FloatingActionButton(onClick = { currentScreen = "SEARCH" }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Podcast")
-                    }
-                }
-            },
-            bottomBar = {
+            )
+        },
+        bottomBar = {
                 val episode = currentPlayingEpisode
                 if (episode != null) {
                     val remainingMs = if (episode.progressMs > 0) (episode.durationMs - episode.progressMs) else episode.durationMs
@@ -294,15 +247,56 @@ fun MainApp(viewModel: PodcastViewModel) {
                     )
                 }
             }
-        ) { paddingValues ->
-            Box(modifier = Modifier.padding(paddingValues)) {
-                if (currentScreen == "FEED") {
-                    MainFeedScreen(viewModel = viewModel, onEpisodeClick = { viewModel.playEpisode(it) })
-                } else {
-                    SearchScreen(viewModel = viewModel, onResultClicked = { 
-                        viewModel.subscribeToPodcast(it)
-                        currentScreen = "FEED"
-                    })
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            HorizontalPager(state = pagerState) { page ->
+                when (page) {
+                    0 -> {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(subscriptions.sortedBy { it.title.lowercase() }) { sub ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedSubscriptionToUnsubscribe = sub }
+                                        .padding(16.dp)
+                                ) {
+                                    Text(text = sub.title, modifier = Modifier.weight(1f))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    
+                                    val rssUrl = sub.rssUrl
+                                    val sourceType = when {
+                                        rssUrl.contains("youtube.com") -> "YTB"
+                                        rssUrl.contains("api.xdio.ca") || rssUrl.contains("ohdio") -> "OHD"
+                                        else -> "POD"
+                                    }
+                                    
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = Color.Transparent,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface)
+                                    ) {
+                                        Text(
+                                            text = sourceType,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        MainFeedScreen(viewModel = viewModel, onEpisodeClick = { viewModel.playEpisode(it) })
+                    }
+                    2 -> {
+                        SearchScreen(viewModel = viewModel, onResultClicked = { 
+                            viewModel.subscribeToPodcast(it)
+                            scope.launch { pagerState.animateScrollToPage(1) }
+                        })
+                    }
                 }
             }
         }
