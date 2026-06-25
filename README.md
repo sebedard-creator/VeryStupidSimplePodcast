@@ -68,3 +68,13 @@ Cette application utilise des variables d'environnement locales pour protéger l
 ## 📜 Philosophie de Conception
 
 La règle d'or de ce projet a été **"Le Backend avant le Frontend"**. L'intégration de Media3, la base de données Room et les requêtes réseaux complexes ont été solidifiées et stabilisées avant même de penser à animer un bouton. Cela a permis de créer une application Android où l'interface n'est pas qu'une coquille vide, mais plutôt le reflet direct d'un moteur performant.
+
+---
+
+## 🙏 Crédits et Remerciements
+
+Un merci tout particulier et particulièrement chaleureux à **milhouse1337** pour la création de la plateforme **Xdio** et pour son intégration impeccable via API. Sans cette infrastructure robuste, la recherche et l'intégration des flux personnalisés n'auraient jamais été aussi fluides et efficaces. Ton travail est grandement apprécié ! 🙌
+
+---
+
+**Développé par Sébastien Bédard**
