@@ -61,8 +61,6 @@ Cette application utilise des variables d'environnement locales pour protéger l
 5. Cliquez sur **Sync Project with Gradle Files**.
 6. Compilez et lancez l'application sur un émulateur ou un appareil physique.
 
-*(Note : Ne jamais exécuter `./gradlew` directement dans le terminal, toujours utiliser Android Studio).*
-
 ---
 
 ## 📜 Philosophie de Conception
