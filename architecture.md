@@ -2,7 +2,7 @@
 
 ## Philosophie Globale
 - **Backend en Premier**: La stabilisation totale de la logique des données et du réseau précède toujours les modifications de l'interface utilisateur.
-- **Aucune dépendance externe (Modules)**: Tout est contenu dans le projet `y:\VeryStupidSimplePodcast`.
+- **Aucune dépendance externe complexe (Modules)**: L'architecture est monolithique (un seul module `app`) pour conserver la simplicité maximale et faciliter la contribution.
 
 ## Couches de l'application
 ### Data Layer (Réseau et BDD)
