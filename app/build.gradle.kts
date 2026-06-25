@@ -121,4 +121,7 @@ dependencies {
 
   // WorkManager
   implementation(libs.androidx.work.runtime.ktx)
+
+  // NewPipeExtractor
+  implementation(libs.newpipe.extractor)
 }

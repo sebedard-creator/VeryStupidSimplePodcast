@@ -22,6 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.layout.size
 import com.verystupidsimplepodcast.data.network.SearchResult
 import com.verystupidsimplepodcast.ui.PodcastViewModel
 
@@ -31,10 +36,40 @@ fun SearchScreen(
     onResultClicked: (SearchResult) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
+    var youtubeUrl by remember { mutableStateOf("") }
     val results by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
+    val isResolving by viewModel.isResolvingYouTube.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = youtubeUrl,
+            onValueChange = { youtubeUrl = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+            label = { Text("Ajouter YouTube (URL ou @handle)") },
+            singleLine = true,
+            trailingIcon = {
+                if (isResolving) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    IconButton(onClick = {
+                        if (youtubeUrl.isNotBlank()) {
+                            viewModel.resolveAndAddYouTube(youtubeUrl) { result ->
+                                if (result != null) {
+                                    youtubeUrl = ""
+                                    onResultClicked(result)
+                                }
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add")
+                    }
+                }
+            }
+        )
+
         OutlinedTextField(
             value = query,
             onValueChange = { 

@@ -21,6 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.verystupidsimplepodcast.data.db.Episode
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,6 +38,7 @@ import java.util.Locale
 fun EpisodeCard(
     episode: Episode,
     podcastName: String,
+    sourceType: String,
     isUnsubscribed: Boolean,
     onClick: () -> Unit,
     onResetProgress: () -> Unit,
@@ -60,8 +69,25 @@ fun EpisodeCard(
                 val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(episode.pubDate))
                 Text(text = dateStr, style = MaterialTheme.typography.bodySmall, color = Color.Gray.copy(alpha = alpha))
                 
-                // Line 2: Podcast Name
-                Text(text = podcastName, style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)))
+                // Line 2: Podcast Name & Source Tag
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = podcastName, style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color.Transparent,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = alpha))
+                    ) {
+                        Text(
+                            text = sourceType,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp)
+                        )
+                    }
+                }
                 
                 // Line 3: Episode Title
                 Text(text = episode.title, style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)), maxLines = 2)

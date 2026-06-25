@@ -138,18 +138,37 @@ class PodcastRepository(
                 return@withContext
             }
 
-            val doc = Jsoup.connect(rssUrl).get()
-            val items = doc.select("item")
+            val isYouTube = rssUrl.contains("youtube.com")
+            val doc = if (isYouTube) {
+                Jsoup.connect(rssUrl).parser(org.jsoup.parser.Parser.xmlParser()).get()
+            } else {
+                Jsoup.connect(rssUrl).get()
+            }
+            val items = doc.select(if (isYouTube) "entry" else "item")
             if (items.isEmpty()) return@withContext
 
-            // ONLY fetch and save index 0
-            val item = items[0]
-            val title = item.select("title").first()?.text() ?: "Unknown"
-            val guid = item.select("guid").first()?.text() ?: item.select("link").first()?.text() ?: ""
-            val pubDateStr = item.select("pubDate").first()?.text() ?: ""
-            val enclosure = item.select("enclosure").first()
-            val audioUrl = enclosure?.attr("url") ?: ""
-            val durationStr = item.select("itunes|duration").first()?.text() ?: ""
+            var validItem: org.jsoup.nodes.Element? = null
+            
+            var videoId = ""
+            for (item in items) {
+                if (isYouTube) {
+                    videoId = item.getElementsByTag("yt:videoId").first()?.text() ?: ""
+                    if (videoId.isNotEmpty() && isYouTubeShort(videoId)) {
+                        continue // Ignore this short
+                    }
+                }
+                validItem = item
+                break
+            }
+            
+            if (validItem == null) return@withContext
+
+            val title = validItem.select("title").first()?.text() ?: "Unknown"
+            val guid = if (isYouTube) videoId else validItem.select("guid").first()?.text() ?: validItem.select("link").first()?.text() ?: ""
+            val pubDateStr = if (isYouTube) validItem.select("published").first()?.text() ?: "" else validItem.select("pubDate").first()?.text() ?: ""
+            val enclosure = validItem.select("enclosure").first()
+            val audioUrl = if (isYouTube) "https://www.youtube.com/watch?v=$videoId" else enclosure?.attr("url") ?: ""
+            val durationStr = validItem.select("itunes|duration").first()?.text() ?: ""
 
             val pubDate = parseDate(pubDateStr)
             val durationMs = parseDuration(durationStr)
@@ -205,6 +224,42 @@ class PodcastRepository(
             }
         } catch (e: Exception) {
             0L
+        }
+    }
+
+    suspend fun resolveYouTubeChannel(input: String): SearchResult? = withContext(Dispatchers.IO) {
+        try {
+            val url = if (input.startsWith("@")) "https://www.youtube.com/$input" else input
+            val service = org.schabi.newpipe.extractor.ServiceList.YouTube
+            val extractor = service.getChannelExtractor(url)
+            extractor.fetchPage()
+            
+            val title = extractor.name
+            val imageUrl = "" // Fallback for now to avoid compilation issues
+            val channelId = extractor.id
+            val rssUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+            
+            return@withContext SearchResult(
+                title = title,
+                imageUrl = imageUrl,
+                rssUrl = rssUrl
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext null
+        }
+    }
+
+    private fun isYouTubeShort(videoId: String): Boolean {
+        try {
+            val url = java.net.URL("https://www.youtube.com/shorts/$videoId")
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.instanceFollowRedirects = false
+            conn.requestMethod = "HEAD"
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            return conn.responseCode == 200
+        } catch (e: Exception) {
+            return false
         }
     }
 }

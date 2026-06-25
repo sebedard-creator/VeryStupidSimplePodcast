@@ -21,7 +21,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -180,6 +187,7 @@ fun MainApp(viewModel: PodcastViewModel) {
     
     val subscriptions by viewModel.subscriptions.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val isExtractingAudio by viewModel.isExtractingAudio.collectAsState()
     val currentPlayingEpisode by viewModel.currentPlayingEpisode.collectAsState()
 
     if (selectedSubscriptionToUnsubscribe != null) {
@@ -209,14 +217,38 @@ fun MainApp(viewModel: PodcastViewModel) {
             ModalDrawerSheet {
                 Text("Subscriptions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
                 LazyColumn {
-                    items(subscriptions) { sub ->
-                        Text(
-                            text = sub.title,
+                    items(subscriptions.sortedBy { it.title.lowercase() }) { sub ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { selectedSubscriptionToUnsubscribe = sub }
                                 .padding(16.dp)
-                        )
+                        ) {
+                            Text(text = sub.title, modifier = Modifier.weight(1f))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            val rssUrl = sub.rssUrl
+                            val sourceType = when {
+                                rssUrl.contains("youtube.com") -> "YTB"
+                                rssUrl.contains("api.xdio.ca") || rssUrl.contains("ohdio") -> "OHD"
+                                else -> "POD"
+                            }
+                            
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color.Transparent,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface)
+                            ) {
+                                Text(
+                                    text = sourceType,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -253,6 +285,7 @@ fun MainApp(viewModel: PodcastViewModel) {
                     MiniPlayer(
                         episodeTitle = episode.title,
                         isPlaying = isPlaying,
+                        isExtractingAudio = isExtractingAudio,
                         remainingText = remainingText,
                         progressRatio = progressRatio,
                         onPlayPause = { viewModel.togglePlayPause() },

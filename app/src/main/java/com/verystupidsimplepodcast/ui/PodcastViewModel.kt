@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import com.google.common.util.concurrent.ListenableFuture
+import android.widget.Toast
 
 class PodcastViewModel(application: Application) : AndroidViewModel(application) {
     private val db = PodcastDatabase.getDatabase(application)
@@ -42,6 +43,12 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching
 
+    private val _isResolvingYouTube = MutableStateFlow(false)
+    val isResolvingYouTube: StateFlow<Boolean> = _isResolvingYouTube
+
+    private val _isExtractingAudio = MutableStateFlow(false)
+    val isExtractingAudio: StateFlow<Boolean> = _isExtractingAudio
+
     init {
         // Refresh feeds on launch silently
         viewModelScope.launch {
@@ -57,6 +64,15 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
             _searchResults.value = emptyList() // clear previous
             repository.searchPodcasts(query, _searchResults)
             _isSearching.value = false
+        }
+    }
+
+    fun resolveAndAddYouTube(urlOrHandle: String, onResult: (SearchResult?) -> Unit) {
+        viewModelScope.launch {
+            _isResolvingYouTube.value = true
+            val result = repository.resolveYouTubeChannel(urlOrHandle)
+            _isResolvingYouTube.value = false
+            onResult(result)
         }
     }
 
@@ -149,9 +165,50 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
             if (!mc.isPlaying) mc.play()
             return
         }
+
+        val isYouTube = episode.audioUrl.contains("youtube.com") || episode.audioUrl.contains("youtu.be")
+        
+        if (isYouTube) {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                _isExtractingAudio.value = true
+                try {
+                    val service = org.schabi.newpipe.extractor.ServiceList.YouTube
+                    val extractor = service.getStreamExtractor(episode.audioUrl)
+                    extractor.fetchPage()
+                    
+                    val audioStreams = extractor.audioStreams
+                    val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+                    
+                    if (bestAudio != null) {
+                        val directUrl = bestAudio.content
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            startExoPlayer(episode, directUrl)
+                            _isExtractingAudio.value = false
+                        }
+                    } else {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            _isExtractingAudio.value = false
+                            Toast.makeText(getApplication(), "Impossible d'extraire l'audio", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        _isExtractingAudio.value = false
+                        Toast.makeText(getApplication(), "Erreur YouTube: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        } else {
+            startExoPlayer(episode, episode.audioUrl)
+        }
+    }
+
+    private fun startExoPlayer(episode: com.verystupidsimplepodcast.data.db.Episode, url: String) {
+        val mc = mediaController ?: return
         val mediaItem = MediaItem.Builder()
             .setMediaId(episode.id.toString())
-            .setUri(episode.audioUrl)
+            .setUri(url)
             .build()
         mc.setMediaItem(mediaItem)
         mc.seekTo(episode.progressMs)

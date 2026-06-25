@@ -9,7 +9,8 @@
 - **Room Database**: Gère les abonnements (`Subscription`) et les épisodes (`Episode`). La suppression d'un abonnement supprime **immédiatement** les épisodes associés de la base de données (nettoyage manuel de la table `episodes`).
 - **Apple Podcast API**: Appels REST officiels via Retrofit.
 - **Xdio API**: Appels REST sécurisés via Retrofit (`v2/search/multi-search` et `v2/rss/show/{id}`) à `api.xdio.ca`. Les identifiants secrets sont stockés dans `local.properties` et injectés via `BuildConfig`. Le flux RSS retourne un objet JSON (encapsulant la liste dans `items`) classé chronologiquement du plus récent au plus ancien.
-- **Parsing RSS (Jsoup)**: Extraction exclusive de l'`index 0` (l'épisode le plus récent) du flux RSS XML d'Apple, sans récupérer l'historique.
+- **Parsing RSS (Jsoup)**: Extraction exclusive de l'`index 0` (l'épisode le plus récent) du flux RSS XML d'Apple et de YouTube. Le flux YouTube est parsé en mode "XML strict" pour gérer correctement les espaces de noms (`yt:videoId`).
+- **Extraction YouTube (NewPipeExtractor v0.26.3)**: Intégration de la librairie NewPipe pour la résolution de chaînes (`@handle` vers `UC...` via `ChannelExtractor`) et l'extraction Just-in-Time (JIT) de l'audio haute qualité (`.m4a` via `StreamExtractor`). Le téléchargement réseau de NewPipe est sécurisé par un `User-Agent` Chrome et des cookies spécifiques (`SOCS`/`CONSENT`) pour contourner les mesures anti-bots.
 - **WorkManager**: `FeedRefreshWorker` s'occupe des synchronisations en arrière-plan. Il est formellement programmé dans `MainActivity` pour tourner chaque heure, avec des contraintes strictes de réseau (connecté) et de batterie (non faible).
 
 ### Audio Layer (ExoPlayer)
@@ -19,6 +20,7 @@
 - **Synchronisation d'État & Stabilité** :
   - **Heartbeat & True Duration** : Un *heartbeat* (lancé sur le `Dispatchers.Main` pour éviter les `IllegalStateException` d'ExoPlayer) enregistre la progression et la "durée réelle" de l'audio (`updateProgressAndDuration` via `Dispatchers.IO`) chaque 15 secondes. Cela corrige les erreurs de durée approximative des flux RSS.
   - **Fin de Lecture** : Lorsqu'un épisode se termine, la progression finale (100%) est sauvegardée *avant* que l'identifiant du média actif ne soit réinitialisé, garantissant l'intégrité des données.
+  - **Extraction JIT**: Pour les sources YouTube, l'URL de base est interceptée. Le `PodcastViewModel` extrait de manière asynchrone l'URL audio directe (`content`) depuis la page vidéo avant d'ordonner la lecture à ExoPlayer. Un indicateur visuel (Spinner) fait patienter l'interface pendant l'opération.
 
 ### UI Layer (Jetpack Compose)
 - **Modèle MVVM**: `PodcastViewModel` gère les états (`StateFlow`), incluant le `MediaController` de Media3 pour piloter le lecteur audio depuis l'interface et une coroutine de mise à jour fluide de la progression en direct.

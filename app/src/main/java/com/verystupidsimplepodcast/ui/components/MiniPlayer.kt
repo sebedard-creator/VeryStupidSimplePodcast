@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
@@ -20,12 +21,14 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun MiniPlayer(
     episodeTitle: String,
     isPlaying: Boolean,
+    isExtractingAudio: Boolean,
     remainingText: String,
     progressRatio: Float,
     onPlayPause: () -> Unit,
@@ -58,13 +61,21 @@ fun MiniPlayer(
             IconButton(onClick = onSkipBackward) {
                 Icon(Icons.Filled.FastRewind, contentDescription = "-10s", tint = MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = onPlayPause) {
-                Icon(
-                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, 
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(8.dp)
+            if (isExtractingAudio) {
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(8.dp).size(24.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp
                 )
+            } else {
+                IconButton(onClick = onPlayPause) {
+                    Icon(
+                        if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, 
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
             IconButton(onClick = onSkipForward) {
                 Icon(Icons.Filled.FastForward, contentDescription = "+10s", tint = MaterialTheme.colorScheme.onSurface)

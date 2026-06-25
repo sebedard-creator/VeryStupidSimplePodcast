@@ -16,6 +16,8 @@ Construite de zéro avec les technologies modernes d'Android, elle offre une exp
 
 ### 🔍 Recherche Intelligente et Multi-Sources
 - Recherche instantanée interrogeant simultanément l'API publique d'**Apple Podcasts** et le réseau personnalisé **Xdio**.
+- **Intégration YouTube Native :** Un module sur mesure propulsé par `NewPipeExtractor` permet d'ajouter n'importe quelle chaîne YouTube (via URL complète ou `@handle`) et de l'écouter comme un balado audio traditionnel, avec filtrage automatique des "Shorts" et contournement des protections anti-bots.
+- **Identification Visuelle :** Un système d'étiquettes discrètes (Tags) affiche la source d'un coup d'œil directement dans vos listes (`YTB` pour YouTube, `OHD` pour Xdio/Ohdio, `POD` pour les flux RSS réguliers).
 - **Algorithme de Pertinence :** Si vous cherchez un nom de balado exact (ex: "Tellement Hockey"), l'algorithme le place tout en haut de la liste, avant les mots-clés flous.
 
 ### 🗃️ Base de Données Native & Mode Hors-Ligne (Room)
@@ -40,8 +42,9 @@ Construite de zéro avec les technologies modernes d'Android, elle offre une exp
 - **Interface Utilisateur :** Jetpack Compose (Material Design 3)
 - **Architecture :** MVVM (Model-View-ViewModel) + StateFlows
 - **Moteur Audio :** AndroidX Media3 (MediaSessionService & ExoPlayer)
+- **Extraction YouTube :** NewPipeExtractor (Extraction audio Just-In-Time)
 - **Base de Données :** Room (SQLite)
-- **Réseau :** Retrofit, GSON, Jsoup (pour l'analyse HTML)
+- **Réseau :** Retrofit, GSON, Jsoup (pour l'analyse HTML et RSS XML)
 - **Tâches en Arrière-plan :** WorkManager
 
 ---

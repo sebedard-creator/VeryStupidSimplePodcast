@@ -36,9 +36,17 @@ fun MainFeedScreen(
                 val podcastName = subscription?.title ?: "Unknown Podcast"
                 val isUnsubscribed = subscription == null
                 
+                val rssUrl = subscription?.rssUrl ?: ""
+                val sourceType = when {
+                    rssUrl.contains("youtube.com") -> "YTB"
+                    rssUrl.contains("api.xdio.ca") || rssUrl.contains("ohdio") -> "OHD"
+                    else -> "POD"
+                }
+                
                 EpisodeCard(
                     episode = episode,
                     podcastName = podcastName,
+                    sourceType = sourceType,
                     isUnsubscribed = isUnsubscribed,
                     onClick = { onEpisodeClick(episode) },
                     onResetProgress = { viewModel.markEpisodeAsUnplayed(episode.id) },

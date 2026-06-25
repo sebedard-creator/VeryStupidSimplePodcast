@@ -52,3 +52,14 @@
   - Bug Threading `ExoPlayer` : Crash `IllegalStateException` car le heartbeat lisait `currentPosition` depuis un fil de travail `Dispatchers.IO`. Minuteur rapatrié sur `Dispatchers.Main`.
   - Bug Sauvegarde de Fin : `PodcastMediaSessionService` tentait de sauvegarder la progression finale *après* avoir changé l'identifiant pour `null` lors de la fin de la piste. Corrigé en sauvegardant l'état précédent en premier.
 - **Diagnostics** : Implémentation d'un `UncaughtExceptionHandler` local à l'application stockant les stacktraces de crashs dans les `SharedPreferences` pour un affichage immédiat au prochain lancement.
+
+### Added (YouTube Integration)
+- **NewPipeExtractor (v0.26.3)**: Intégration pour la résolution des chaînes YouTube (URLs ou `@handles`) et l'extraction JIT (Just-in-Time) des flux audio.
+- **Extraction JIT (Just-in-Time)**: Récupération de l'URL audio `.m4a` directe au moment de la lecture, avec Spinner d'attente sur le `MiniPlayer`.
+- **Anti-Bot Bypass**: Ajout d'un `User-Agent` Chrome 120, de cookies `SOCS`/`CONSENT` et de localisation `en-US` dans le `SimpleDownloader` pour contourner les vérifications YouTube.
+- **Parsing RSS YouTube** : Configuration de Jsoup en mode XML pour gérer les namespaces (`yt:videoId`) et filtrage automatique des "Shorts" via requêtes HEAD (vérification de la redirection 303).
+
+### Changed (UI Updates)
+- **SearchScreen** : Ajout d'un champ dédié à la résolution d'URL et `@handle` YouTube.
+- **MainFeedScreen & EpisodeCard** : Ajout d'une étiquette visuelle discrète (Tag Pill rectangulaire et transparent) pour identifier la source d'un coup d'œil (`YTB`, `OHD`, `POD`).
+- **Drawer / Subscriptions** : Tri alphabétique des abonnements de A à Z et intégration des étiquettes de source adaptatives.
