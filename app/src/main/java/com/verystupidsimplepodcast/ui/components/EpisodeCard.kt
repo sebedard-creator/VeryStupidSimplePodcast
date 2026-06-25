@@ -94,8 +94,13 @@ fun EpisodeCard(
                 
                 // Line 4: Time Remaining / Duration
                 val remainingMs = if (episode.progressMs > 0) (episode.durationMs - episode.progressMs) else episode.durationMs
-                val remainingText = if (episode.isCompleted) "Completed" else "${formatDuration(remainingMs)} Restant"
-                Text(text = remainingText, style = MaterialTheme.typography.bodySmall, color = Color.Gray.copy(alpha = alpha))
+                val remainingText = if (episode.isCompleted) "Complété" else "${formatDuration(remainingMs)} Restant"
+                val remainingColor = when {
+                    episode.isCompleted -> MaterialTheme.colorScheme.primary
+                    episode.progressMs > 0L -> Color(0xFFE5C07B) // Soft yellow for "started but not finished"
+                    else -> Color.Gray // Default for "not started"
+                }
+                Text(text = remainingText, style = MaterialTheme.typography.bodySmall, color = remainingColor.copy(alpha = alpha))
             }
         }
         
