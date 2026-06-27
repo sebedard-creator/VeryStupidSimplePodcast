@@ -111,7 +111,7 @@ class PodcastRepository(
         fetchLatestEpisode(subscriptionId, searchResult.rssUrl)
     }
 
-    suspend fun fetchLatestEpisode(subscriptionId: Long, rssUrl: String) = withContext(Dispatchers.IO) {
+    suspend fun fetchLatestEpisode(subscriptionId: Long, rssUrl: String): Episode? = withContext(Dispatchers.IO) {
         try {
             if (rssUrl.contains("api.xdio.ca")) {
                 val token = "Bearer ${com.verystupidsimplepodcast.BuildConfig.XDIO_API_TOKEN}"
@@ -123,8 +123,7 @@ class PodcastRepository(
                     val existingEpisode = episodeDao.getEpisodeByGuid(guidStr)
                     if (existingEpisode == null && latest.audio.isNotEmpty()) {
                         val pubDate = parseDate(latest.pubDate)
-                        episodeDao.insertEpisode(
-                            Episode(
+                        val newEpisode = Episode(
                                 subscriptionId = subscriptionId,
                                 guid = guidStr,
                                 title = latest.title,
@@ -132,10 +131,11 @@ class PodcastRepository(
                                 durationMs = latest.duration * 1000L,
                                 audioUrl = latest.audio
                             )
-                        )
+                        episodeDao.insertEpisode(newEpisode)
+                        return@withContext newEpisode
                     }
                 }
-                return@withContext
+                return@withContext null
             }
 
             val isYouTube = rssUrl.contains("youtube.com")
@@ -145,7 +145,7 @@ class PodcastRepository(
                 Jsoup.connect(rssUrl).get()
             }
             val items = doc.select(if (isYouTube) "entry" else "item")
-            if (items.isEmpty()) return@withContext
+            if (items.isEmpty()) return@withContext null
 
             var validItem: org.jsoup.nodes.Element? = null
             
@@ -161,7 +161,7 @@ class PodcastRepository(
                 break
             }
             
-            if (validItem == null) return@withContext
+            if (validItem == null) return@withContext null
 
             val title = validItem.select("title").first()?.text() ?: "Unknown"
             val guid = if (isYouTube) videoId else validItem.select("guid").first()?.text() ?: validItem.select("link").first()?.text() ?: ""
@@ -175,8 +175,7 @@ class PodcastRepository(
 
             val existingEpisode = episodeDao.getEpisodeByGuid(guid)
             if (existingEpisode == null && audioUrl.isNotEmpty()) {
-                episodeDao.insertEpisode(
-                    Episode(
+                val newEpisode = Episode(
                         subscriptionId = subscriptionId,
                         guid = guid,
                         title = title,
@@ -184,18 +183,25 @@ class PodcastRepository(
                         durationMs = durationMs,
                         audioUrl = audioUrl
                     )
-                )
+                episodeDao.insertEpisode(newEpisode)
+                return@withContext newEpisode
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        return@withContext null
     }
 
-    suspend fun refreshAllFeeds() = withContext(Dispatchers.IO) {
+    suspend fun refreshAllFeeds(): List<Episode> = withContext(Dispatchers.IO) {
         val subscriptions = subscriptionDao.getAllSubscriptionsList()
+        val newEpisodes = mutableListOf<Episode>()
         subscriptions.forEach { sub ->
-            fetchLatestEpisode(sub.id, sub.rssUrl)
+            val newEp = fetchLatestEpisode(sub.id, sub.rssUrl)
+            if (newEp != null) {
+                newEpisodes.add(newEp)
+            }
         }
+        return@withContext newEpisodes
     }
 
     private fun parseDate(dateStr: String): Long {
