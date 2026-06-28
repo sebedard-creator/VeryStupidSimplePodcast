@@ -29,6 +29,8 @@
   - Sécurisation du token de l'API via `local.properties` et `BuildConfig`.
 
 ### Fixed
+- **Lecture et Reprise (Playback Resume)** :
+  - Résolution d'un problème où la reprise d'un épisode en pause recommençait du début (0s) au lieu d'utiliser le temps restant sauvegardé. Correction faite en remplaçant la séquence `setMediaItem` + `seekTo` (sujet à des conditions de concurrence asynchrones dans Media3) par l'appel atomique `setMediaItem(mediaItem, startPositionMs)`.
 - **API Xdio (Épisodes récents)**: 
   - Résolution d'un crash de parsing silencieux (`v2/rss/show/{id}` retourne un objet enveloppant les épisodes sous la clé `items`, classés du plus récent au plus ancien, au lieu d'un tableau direct). Modélisation corrigée (`XdioShowFeedResponse`) et index 0 lu correctement.
 - **Background Jobs (WorkManager)**: 
