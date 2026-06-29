@@ -19,6 +19,9 @@ L'application est une application Android "podcast" robuste et hautement personn
 5. Nettoyage et mise à jour de la documentation (`README.md`, `architecture.md`, `changelog.md`).
 6. Création d'une proposition d'icône d'application.
 7. Résolution du bogue de reprise de lecture (playback resume) via l'appel atomique `setMediaItem(mediaItem, startPositionMs)`.
+8. Résolution du plantage `Service not registered` lors de la destruction du `MediaController` en utilisant le contexte d'application globale (`applicationContext`).
+9. Correction du filtrage des YouTube Shorts qui contournaient les requêtes de détection en injectant les cookies de contournement de la barrière de consentement de Google.
+10. Correction du bogue qui réinitialisait la progression de l'ancien épisode lors d'un changement de média (en interceptant `onPositionDiscontinuity` pour extraire `oldPosition.mediaItem?.mediaId` et sa position finale `oldPosition.positionMs`).
 
 ## Prochaines étapes suggérées
 - Créer l'icône de lancement de l'application (Launcher Icon) dans Android Studio en important l'image générée.

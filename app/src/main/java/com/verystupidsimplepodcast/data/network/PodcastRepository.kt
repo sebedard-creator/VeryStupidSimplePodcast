@@ -262,7 +262,9 @@ class PodcastRepository(
             val conn = url.openConnection() as java.net.HttpURLConnection
             conn.instanceFollowRedirects = false
             conn.requestMethod = "HEAD"
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+            conn.setRequestProperty("Cookie", "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+438")
             return conn.responseCode == 200
         } catch (e: Exception) {
             return false

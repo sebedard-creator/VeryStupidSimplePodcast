@@ -101,10 +101,11 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
     private val _currentPlayingEpisode = MutableStateFlow<com.verystupidsimplepodcast.data.db.Episode?>(null)
     val currentPlayingEpisode: StateFlow<com.verystupidsimplepodcast.data.db.Episode?> = _currentPlayingEpisode
 
-    fun initPlayer(context: Context) {
+    fun initPlayer() {
         if (controllerFuture != null) return
-        val sessionToken = SessionToken(context, ComponentName(context, PodcastMediaSessionService::class.java))
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val appContext = getApplication<Application>()
+        val sessionToken = SessionToken(appContext, ComponentName(appContext, PodcastMediaSessionService::class.java))
+        controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
         controllerFuture?.addListener({
             try {
                 val controller = controllerFuture?.get()
@@ -121,7 +122,7 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }, ContextCompat.getMainExecutor(context))
+        }, ContextCompat.getMainExecutor(appContext))
     }
 
     private fun updateCurrentEpisodeFromMediaId(mediaId: String?) {
@@ -245,5 +246,7 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() {
         super.onCleared()
         controllerFuture?.let { MediaController.releaseFuture(it) }
+        mediaController = null
+        controllerFuture = null
     }
 }

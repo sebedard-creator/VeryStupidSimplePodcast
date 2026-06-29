@@ -29,8 +29,14 @@
   - Sécurisation du token de l'API via `local.properties` et `BuildConfig`.
 
 ### Fixed
+- **Correction du Suivi de Progression sur Transition (Reset Progress Bug)** :
+  - Résolution du problème où le démarrage d'un nouvel épisode réinitialisait la progression de l'épisode précédent à 0 ("non lu"). La sauvegarde effectuée sur la transition lisait l'état du lecteur *après* le chargement de la nouvelle piste (qui était à 0), mais l'appliquait à l'ID de l'ancienne. Corrigé en écoutant `onPositionDiscontinuity` et en récupérant l'historique exact de position de l'ancienne piste via `oldPosition.mediaItem?.mediaId` et `oldPosition.positionMs` avant sa destruction (correction syntaxique d'accès au `mediaId` via `mediaItem`).
+- **Bypass de Filtrage des Shorts YouTube** :
+  - Résolution d'un bogue où certains "Shorts" YouTube contournaient le filtre et étaient proposés comme épisodes. La requête HEAD permettant de détecter les Shorts était bloquée par la barrière de consentement de Google/YouTube sur les appareils mobiles, retournant un code d'erreur `302` ou `403` au lieu de `200`. Corrigé en injectant les en-têtes de contournement anti-bot (`User-Agent` complet, `Accept-Language` et les cookies `SOCS`/`CONSENT`) identiques à notre téléchargeur principal.
 - **Lecture et Reprise (Playback Resume)** :
   - Résolution d'un problème où la reprise d'un épisode en pause recommençait du début (0s) au lieu d'utiliser le temps restant sauvegardé. Correction faite en remplaçant la séquence `setMediaItem` + `seekTo` (sujet à des conditions de concurrence asynchrones dans Media3) par l'appel atomique `setMediaItem(mediaItem, startPositionMs)`.
+- **Crash au Fermeture (Service Not Registered)** :
+  - Résolution du plantage `IllegalArgumentException: Service not registered` provoqué par la libération du `MediaController` lors de la fermeture de l'application ou d'une rotation d'écran. Corrigé en initialisant le `MediaController` avec le `applicationContext` au lieu du contexte d'Activity (`MainActivity`), garantissant que la liaison survit aux cycles de vie de l'Activity et se détruit proprement.
 - **API Xdio (Épisodes récents)**: 
   - Résolution d'un crash de parsing silencieux (`v2/rss/show/{id}` retourne un objet enveloppant les épisodes sous la clé `items`, classés du plus récent au plus ancien, au lieu d'un tableau direct). Modélisation corrigée (`XdioShowFeedResponse`) et index 0 lu correctement.
 - **Background Jobs (WorkManager)**: 

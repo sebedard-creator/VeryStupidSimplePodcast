@@ -172,7 +172,7 @@ fun MainApp(viewModel: PodcastViewModel) {
         } else {
             hasPermissionAnswered = true
         }
-        viewModel.initPlayer(context)
+        viewModel.initPlayer()
     }
 
     if (!hasPermissionAnswered) {

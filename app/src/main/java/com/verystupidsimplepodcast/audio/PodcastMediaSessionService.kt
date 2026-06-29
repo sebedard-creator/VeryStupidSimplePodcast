@@ -69,8 +69,19 @@ class PodcastMediaSessionService : MediaSessionService() {
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                saveProgress() // Save previous state BEFORE changing ID
                 currentEpisodeId = mediaItem?.mediaId?.toLongOrNull() ?: -1L
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                val oldId = oldPosition.mediaItem?.mediaId?.toLongOrNull() ?: -1L
+                val newId = newPosition.mediaItem?.mediaId?.toLongOrNull() ?: -1L
+                if (oldId != -1L && oldId != newId) {
+                    saveEpisodeProgress(oldId, oldPosition.positionMs, -1L)
+                }
             }
         })
     }
@@ -116,23 +127,27 @@ class PodcastMediaSessionService : MediaSessionService() {
 
     private fun saveProgress() {
         val p = player ?: return
-        val currentPosition = p.currentPosition
-        val totalDuration = p.duration
-        val episodeId = currentEpisodeId
-        
-        if (episodeId == -1L || currentPosition <= 0) return
+        saveEpisodeProgress(currentEpisodeId, p.currentPosition, p.duration)
+    }
 
-        val isCompleted = if (totalDuration > 0 && totalDuration != C.TIME_UNSET) {
-            (currentPosition.toFloat() / totalDuration.toFloat()) > 0.95f
+    private fun saveEpisodeProgress(episodeId: Long, positionMs: Long, durationMs: Long) {
+        if (episodeId == -1L || positionMs <= 0) return
+
+        val isCompleted = if (durationMs > 0 && durationMs != C.TIME_UNSET) {
+            (positionMs.toFloat() / durationMs.toFloat()) > 0.95f
         } else false
 
         serviceScope.launch {
             try {
                 val dao = PodcastDatabase.getDatabase(applicationContext).episodeDao()
-                if (totalDuration > 0 && totalDuration != C.TIME_UNSET) {
-                    dao.updateProgressAndDuration(episodeId, currentPosition, totalDuration, isCompleted)
+                if (durationMs > 0 && durationMs != C.TIME_UNSET) {
+                    dao.updateProgressAndDuration(episodeId, positionMs, durationMs, isCompleted)
                 } else {
-                    dao.updateProgress(episodeId, currentPosition, isCompleted)
+                    val existing = dao.getEpisodeById(episodeId)
+                    val completed = if (existing != null && existing.durationMs > 0) {
+                        (positionMs.toFloat() / existing.durationMs.toFloat()) > 0.95f
+                    } else isCompleted
+                    dao.updateProgress(episodeId, positionMs, completed)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
