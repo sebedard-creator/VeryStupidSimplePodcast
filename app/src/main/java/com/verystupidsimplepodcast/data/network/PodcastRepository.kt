@@ -6,6 +6,7 @@ import com.verystupidsimplepodcast.data.db.SubscriptionDao
 import com.verystupidsimplepodcast.data.db.EpisodeDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -111,14 +112,14 @@ class PodcastRepository(
         fetchLatestEpisode(subscriptionId, searchResult.rssUrl)
     }
 
-    suspend fun fetchLatestEpisode(subscriptionId: Long, rssUrl: String): Episode? = withContext(Dispatchers.IO) {
+    suspend fun fetchLatestEpisode(subscriptionId: Long, rssUrl: String): List<Episode> = withContext(Dispatchers.IO) {
+        val newEpisodes = mutableListOf<Episode>()
         try {
             if (rssUrl.contains("api.xdio.ca")) {
                 val token = "Bearer ${com.verystupidsimplepodcast.BuildConfig.XDIO_API_TOKEN}"
                 val response = xdioApi.getShowEpisodes(token, rssUrl)
                 val episodes = response.items
-                if (episodes.isNotEmpty()) {
-                    val latest = episodes[0]
+                for (latest in episodes) {
                     val guidStr = latest.eid.toString()
                     val existingEpisode = episodeDao.getEpisodeByGuid(guidStr)
                     if (existingEpisode == null && latest.audio.isNotEmpty()) {
@@ -132,10 +133,12 @@ class PodcastRepository(
                                 audioUrl = latest.audio
                             )
                         episodeDao.insertEpisode(newEpisode)
-                        return@withContext newEpisode
+                        newEpisodes.add(newEpisode)
+                    } else if (existingEpisode != null) {
+                        break // We found an episode already in the database, stop parsing older ones
                     }
                 }
-                return@withContext null
+                return@withContext newEpisodes
             }
 
             val isYouTube = rssUrl.contains("youtube.com")
@@ -145,63 +148,66 @@ class PodcastRepository(
                 Jsoup.connect(rssUrl).get()
             }
             val items = doc.select(if (isYouTube) "entry" else "item")
-            if (items.isEmpty()) return@withContext null
+            if (items.isEmpty()) return@withContext emptyList()
 
-            var validItem: org.jsoup.nodes.Element? = null
-            
-            var videoId = ""
-            for (item in items) {
+            // Limit scan to latest 15 items to prevent excessive network hit or BDD load
+            val itemsToScan = items.take(15)
+
+            for (item in itemsToScan) {
+                var videoId = ""
                 if (isYouTube) {
                     videoId = item.getElementsByTag("yt:videoId").first()?.text() ?: ""
-                    if (videoId.isNotEmpty() && isYouTubeShort(videoId)) {
+                    val title = item.select("title").first()?.text() ?: ""
+                    if (videoId.isNotEmpty() && isYouTubeShort(videoId, title)) {
                         continue // Ignore this short
                     }
                 }
-                validItem = item
-                break
-            }
-            
-            if (validItem == null) return@withContext null
 
-            val title = validItem.select("title").first()?.text() ?: "Unknown"
-            val guid = if (isYouTube) videoId else validItem.select("guid").first()?.text() ?: validItem.select("link").first()?.text() ?: ""
-            val pubDateStr = if (isYouTube) validItem.select("published").first()?.text() ?: "" else validItem.select("pubDate").first()?.text() ?: ""
-            val enclosure = validItem.select("enclosure").first()
-            val audioUrl = if (isYouTube) "https://www.youtube.com/watch?v=$videoId" else enclosure?.attr("url") ?: ""
-            val durationStr = validItem.select("itunes|duration").first()?.text() ?: ""
+                val title = item.select("title").first()?.text() ?: "Unknown"
+                val guid = if (isYouTube) videoId else item.select("guid").first()?.text() ?: item.select("link").first()?.text() ?: ""
+                val pubDateStr = if (isYouTube) item.select("published").first()?.text() ?: "" else item.select("pubDate").first()?.text() ?: ""
+                val enclosure = item.select("enclosure").first()
+                val audioUrl = if (isYouTube) "https://www.youtube.com/watch?v=$videoId" else enclosure?.attr("url") ?: ""
+                val durationStr = item.select("itunes|duration").first()?.text() ?: ""
 
-            val pubDate = parseDate(pubDateStr)
-            val durationMs = parseDuration(durationStr)
+                val pubDate = parseDate(pubDateStr)
+                val durationMs = parseDuration(durationStr)
 
-            val existingEpisode = episodeDao.getEpisodeByGuid(guid)
-            if (existingEpisode == null && audioUrl.isNotEmpty()) {
-                val newEpisode = Episode(
-                        subscriptionId = subscriptionId,
-                        guid = guid,
-                        title = title,
-                        pubDate = pubDate,
-                        durationMs = durationMs,
-                        audioUrl = audioUrl
-                    )
-                episodeDao.insertEpisode(newEpisode)
-                return@withContext newEpisode
+                val existingEpisode = episodeDao.getEpisodeByGuid(guid)
+                if (existingEpisode == null && audioUrl.isNotEmpty()) {
+                    val newEpisode = Episode(
+                            subscriptionId = subscriptionId,
+                            guid = guid,
+                            title = title,
+                            pubDate = pubDate,
+                            durationMs = durationMs,
+                            audioUrl = audioUrl
+                        )
+                    episodeDao.insertEpisode(newEpisode)
+                    newEpisodes.add(newEpisode)
+                } else if (existingEpisode != null) {
+                    break // Stop parsing older episodes as we already have this one
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return@withContext null
+        return@withContext newEpisodes
     }
 
     suspend fun refreshAllFeeds(): List<Episode> = withContext(Dispatchers.IO) {
         val subscriptions = subscriptionDao.getAllSubscriptionsList()
-        val newEpisodes = mutableListOf<Episode>()
-        subscriptions.forEach { sub ->
-            val newEp = fetchLatestEpisode(sub.id, sub.rssUrl)
-            if (newEp != null) {
-                newEpisodes.add(newEp)
+        val deferreds = subscriptions.map { sub ->
+            async {
+                try {
+                    fetchLatestEpisode(sub.id, sub.rssUrl)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    emptyList()
+                }
             }
         }
-        return@withContext newEpisodes
+        return@withContext deferreds.awaitAll().flatten()
     }
 
     private fun parseDate(dateStr: String): Long {
@@ -254,6 +260,14 @@ class PodcastRepository(
             e.printStackTrace()
             return@withContext null
         }
+    }
+
+    private fun isYouTubeShort(videoId: String, title: String): Boolean {
+        // Optimisation: check regex on title to avoid network request
+        if (title.contains("#Shorts", ignoreCase = true) || title.contains("#short", ignoreCase = true)) {
+            return true
+        }
+        return isYouTubeShort(videoId)
     }
 
     private fun isYouTubeShort(videoId: String): Boolean {

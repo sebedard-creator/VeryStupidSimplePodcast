@@ -22,6 +22,12 @@ L'application est une application Android "podcast" robuste et hautement personn
 8. Résolution du plantage `Service not registered` lors de la destruction du `MediaController` en utilisant le contexte d'application globale (`applicationContext`).
 9. Correction du filtrage des YouTube Shorts qui contournaient les requêtes de détection en injectant les cookies de contournement de la barrière de consentement de Google.
 10. Correction du bogue qui réinitialisait la progression de l'ancien épisode lors d'un changement de média (en interceptant `onPositionDiscontinuity` pour extraire `oldPosition.mediaItem?.mediaId` et sa position finale `oldPosition.positionMs`).
+11. Optimisation du rafraîchissement des flux en arrière-plan via des coroutines parallèles (`async`/`awaitAll`).
+12. Amélioration de la détection des épisodes pour scanner les 15 dernières publications (au lieu de seulement l'index 0) et ainsi éviter les épisodes manqués.
+13. Ajout d'une pré-vérification Regex (`#Shorts`) pour réduire les requêtes réseau HEAD sur YouTube.
+14. Liaison d'un `PendingIntent` à la notification pour ouvrir l'application sur clic.
+15. Intégration d'un dialogue au démarrage pour désactiver l'optimisation de batterie agressive (Samsung S23 Ultra) afin d'éviter le blocage de WorkManager.
+16. Mise à jour de la politique de planification en `ExistingPeriodicWorkPolicy.UPDATE` et suppression de la contrainte restrictive de batterie faible.
 
 ## Prochaines étapes suggérées
 - Créer l'icône de lancement de l'application (Launcher Icon) dans Android Studio en important l'image générée.

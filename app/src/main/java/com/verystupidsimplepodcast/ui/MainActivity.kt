@@ -2,6 +2,7 @@ package com.verystupidsimplepodcast.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -15,6 +16,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import android.os.PowerManager
+import android.provider.Settings
+import android.net.Uri
 import java.util.concurrent.TimeUnit
 import com.verystupidsimplepodcast.data.worker.FeedRefreshWorker
 import androidx.compose.foundation.clickable
@@ -97,7 +101,6 @@ class MainActivity : ComponentActivity() {
         // Schedule background feed refresh
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
             .build()
 
         val refreshWorkRequest = PeriodicWorkRequestBuilder<FeedRefreshWorker>(1, TimeUnit.HOURS)
@@ -105,7 +108,7 @@ class MainActivity : ComponentActivity() {
             .build()
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "FeedRefreshWork",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             refreshWorkRequest
         )
 
@@ -173,6 +176,45 @@ fun MainApp(viewModel: PodcastViewModel) {
             hasPermissionAnswered = true
         }
         viewModel.initPlayer()
+    }
+
+    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
+    var showBatteryDialog by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            } else false
+        )
+    }
+
+    if (showBatteryDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatteryDialog = false },
+            title = { Text("Optimisation batterie active") },
+            text = { 
+                Text("Pour recevoir les notifications en arrière-plan, veuillez désactiver l'optimisation de la batterie pour cette application.") 
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    showBatteryDialog = false
+                }) {
+                    Text("Désactiver")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatteryDialog = false }) {
+                    Text("Plus tard")
+                }
+            }
+        )
     }
 
     if (!hasPermissionAnswered) {

@@ -27,6 +27,15 @@
 - **Migration API Xdio**:
   - Remplacement du scraping Jsoup de `yodio.ca` par des appels REST à l'API `api.xdio.ca/v2/search/multi-search`.
   - Sécurisation du token de l'API via `local.properties` et `BuildConfig`.
+### Optimized & Improved
+- **Gestion de l'Optimisation de Batterie Android** :
+  - Ajout de la permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` et affichage d'une boîte de dialogue au lancement si l'optimisation est active, permettant de whitelister facilement l'application pour empêcher One UI (Samsung S23 Ultra) d'interrompre les tâches de fond.
+  - Allègement des contraintes de `WorkManager` : suppression de la restriction `.setRequiresBatteryNotLow(true)` qui bloquait les tâches de fond même avec une batterie moyenne en mode économie.
+  - Mise à jour de la politique de planification en `ExistingPeriodicWorkPolicy.UPDATE` (au lieu de `KEEP`) pour forcer Android à appliquer les nouvelles contraintes et configurations du worker dès la mise à jour.
+- **Rafraîchissement en Parallèle des Flux** : Remplacement de la boucle séquentielle de rafraîchissement par des coroutines parallèles (`async`/`awaitAll`), accélérant drastiquement le rafraîchissement de tous les flux en tâche de fond.
+- **Récupération Exhaustive des Nouveautés** : Modification du traitement RSS/API pour ne plus s'arrêter au tout premier élément (index 0). L'application parcourt désormais les 15 derniers épisodes et importe *tous* ceux absents de la base de données jusqu'à rencontrer un doublon.
+- **Filtrage des YouTube Shorts Allégé** : Ajout d'une pré-vérification par expression régulière recherchant `#Shorts` ou `#short` dans les titres pour éviter de lancer inutilement des requêtes réseau HEAD.
+- **Ergonomie des Notifications** : Liaison d'un `PendingIntent` (FLAG_IMMUTABLE) à la notification système pour ouvrir automatiquement la page d'accueil de l'application lors d'un clic.
 
 ### Fixed
 - **Correction du Suivi de Progression sur Transition (Reset Progress Bug)** :
