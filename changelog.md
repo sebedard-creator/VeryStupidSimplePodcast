@@ -35,6 +35,9 @@
 - **Rafraîchissement en Parallèle des Flux** : Remplacement de la boucle séquentielle de rafraîchissement par des coroutines parallèles (`async`/`awaitAll`), accélérant drastiquement le rafraîchissement de tous les flux en tâche de fond.
 - **Récupération Exhaustive des Nouveautés** : Modification du traitement RSS/API pour ne plus s'arrêter au tout premier élément (index 0). L'application parcourt désormais les 15 derniers épisodes et importe *tous* ceux absents de la base de données jusqu'à rencontrer un doublon.
 - **Filtrage des YouTube Shorts Allégé** : Ajout d'une pré-vérification par expression régulière recherchant `#Shorts` ou `#short` dans les titres pour éviter de lancer inutilement des requêtes réseau HEAD.
+- **Filtrage des Directs YouTube (Live Streams & VODs)** :
+  - Ajout d'un système de détection et d'exclusion des vidéos en direct (Live en cours ou événements programmés à venir) lors de la synchronisation. L'application télécharge de manière ciblée la page de lecture et recherche les signatures spécifiques `"isLive":true` ou `"isUpcoming":true` pour ignorer ces flux incompatibles avec un format balado.
+  - **Mise à jour VODs** : Augmentation de la limite de lecture HTML à 2 millions de caractères et ajout du tag `isLiveBroadcast` pour exclure également les rediffusions (replays/VODs) de diffusions en direct terminées.
 - **Ergonomie des Notifications** : Liaison d'un `PendingIntent` (FLAG_IMMUTABLE) à la notification système pour ouvrir automatiquement la page d'accueil de l'application lors d'un clic.
 
 ### Fixed
@@ -52,6 +55,14 @@
   - `FeedRefreshWorker` n'était jamais programmé. Ajout de `PeriodicWorkRequestBuilder` (1 heure) avec contraintes (`NetworkType.CONNECTED`, `RequiresBatteryNotLow`) dans `MainActivity`.
 - **Database (Room)**:
   - Ajout de `deleteEpisodesBySubscriptionId` dans `Daos.kt` et modification de `PodcastViewModel.unsubscribePodcast` pour supprimer immédiatement et manuellement les épisodes du fil de l'utilisateur lorsqu'il se désabonne.
+- **Optimisation du Scan YouTube (Audit Point #4)** :
+  - Déplacement de la vérification en base de données AVANT les appels réseau (`isYouTubeShort`, `isYouTubeLive`). Réduit la consommation de données par refresh de ~60 MB à quasi-zéro pour les flux déjà synchronisés.
+- **Tolérance de Trous dans le Scan RSS (Audit Point #5)** :
+  - Le `break` immédiat au premier épisode connu est remplacé par un compteur de 3 épisodes consécutifs connus, tolérant les trous créés par les Shorts et Lives filtrés.
+- **Parsing des Dates YouTube (Audit Point #8)** :
+  - Les dates ISO 8601 (`2026-06-30T15:00:00+00:00`) n'étaient pas parsées, forçant tous les épisodes YouTube à avoir comme date le moment du refresh. Ajout du format ISO 8601 en tête de la chaîne de parsing.
+- **Uniformisation Skip ±10s (Audit Point #13)** :
+  - Le bouton avance rapide faisait 30 000 ms malgré un `contentDescription` de "+10s". Uniformisé à 10 000 ms dans les deux directions.
 - **UI & Playback (Media3)**: 
   - Liaison manquante corrigée. Instanciation du `MediaController` dans le `PodcastViewModel` pour lier l'interface (`EpisodeCard`, `MiniPlayer`) au service `PodcastMediaSessionService` existant.
   - Ajout de `getEpisodeById` dans la base de données (Room) pour restaurer l'état local via l'identifiant lu depuis `Media3`.

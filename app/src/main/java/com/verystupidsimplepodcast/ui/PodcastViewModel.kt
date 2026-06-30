@@ -223,7 +223,7 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
 
     fun skipForward() {
         val mc = mediaController ?: return
-        mc.seekTo(mc.currentPosition + 30000)
+        mc.seekTo(mc.currentPosition + 10000)
     }
 
     fun skipBackward() {

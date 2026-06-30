@@ -28,6 +28,7 @@ L'application est une application Android "podcast" robuste et hautement personn
 14. Liaison d'un `PendingIntent` à la notification pour ouvrir l'application sur clic.
 15. Intégration d'un dialogue au démarrage pour désactiver l'optimisation de batterie agressive (Samsung S23 Ultra) afin d'éviter le blocage de WorkManager.
 16. Mise à jour de la politique de planification en `ExistingPeriodicWorkPolicy.UPDATE` et suppression de la contrainte restrictive de batterie faible.
+17. Ajout d'une détection et exclusion automatique des vidéos en direct (Live / Direct), à venir (Upcoming Events), ET des rediffusions (VOD Replays) sur YouTube pour éviter de les proposer dans le flux.
 
 ## Prochaines étapes suggérées
 - Créer l'icône de lancement de l'application (Launcher Icon) dans Android Studio en important l'image générée.
@@ -35,4 +36,7 @@ L'application est une application Android "podcast" robuste et hautement personn
 - Implémenter l'écoute hors-ligne (téléchargement explicite) ou améliorer la gestion de cache hors ligne.
 
 ## Bogues Connus
-- Il n'y a pas de bogue majeur connu à ce stade. La gestion des erreurs réseau via NewPipe ou Jsoup s'appuie sur le mécanisme `Result.retry()` du WorkManager et sur un `UncaughtExceptionHandler` local robuste.
+- **Optimisation de `isYouTubeLive`** : Déplacement de la vérification en base de données **avant** les appels réseau coûteux (HEAD pour Shorts, GET ~800KB pour Live). Les vidéos déjà importées ne déclenchent plus de requêtes inutiles, réduisant la consommation de données par refresh de ~60 MB à quasi-zéro.
+- **Tolérance de trous dans le scan RSS** : Remplacement du `break` brutal par un compteur de 3 épisodes consécutifs connus avant d'arrêter. Les vidéos nouvelles intercalées entre des Shorts/Lives filtrés et des épisodes existants ne seront plus ignorées silencieusement.
+- **Parsing ISO 8601 pour YouTube** : Ajout du format `yyyy-MM-dd'T'HH:mm:ssXXX` en tête de la chaîne de parsing des dates. Les épisodes YouTube avaient tous `System.currentTimeMillis()` comme date, cassant le tri chronologique du flux.
+- **Uniformisation skip +10s/-10s** : Le bouton avance rapide faisait 30 secondes malgré un label "10s". Uniformisé à 10s dans les deux directions.

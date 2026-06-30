@@ -153,18 +153,36 @@ class PodcastRepository(
             // Limit scan to latest 15 items to prevent excessive network hit or BDD load
             val itemsToScan = items.take(15)
 
+            var consecutiveKnown = 0
             for (item in itemsToScan) {
                 var videoId = ""
+                val guid: String
                 if (isYouTube) {
                     videoId = item.getElementsByTag("yt:videoId").first()?.text() ?: ""
-                    val title = item.select("title").first()?.text() ?: ""
-                    if (videoId.isNotEmpty() && isYouTubeShort(videoId, title)) {
-                        continue // Ignore this short
+                    guid = videoId
+
+                    // Point #4 fix: check DB BEFORE costly network calls
+                    if (guid.isNotEmpty()) {
+                        val existingEpisode = episodeDao.getEpisodeByGuid(guid)
+                        if (existingEpisode != null) {
+                            consecutiveKnown++
+                            if (consecutiveKnown >= 3) break
+                            continue
+                        }
+                        consecutiveKnown = 0
                     }
+
+                    val title = item.select("title").first()?.text() ?: ""
+                    if (videoId.isNotEmpty()) {
+                        if (isYouTubeShort(videoId, title) || isYouTubeLive(videoId)) {
+                            continue // Ignore this short or live/upcoming stream
+                        }
+                    }
+                } else {
+                    guid = item.select("guid").first()?.text() ?: item.select("link").first()?.text() ?: ""
                 }
 
                 val title = item.select("title").first()?.text() ?: "Unknown"
-                val guid = if (isYouTube) videoId else item.select("guid").first()?.text() ?: item.select("link").first()?.text() ?: ""
                 val pubDateStr = if (isYouTube) item.select("published").first()?.text() ?: "" else item.select("pubDate").first()?.text() ?: ""
                 val enclosure = item.select("enclosure").first()
                 val audioUrl = if (isYouTube) "https://www.youtube.com/watch?v=$videoId" else enclosure?.attr("url") ?: ""
@@ -185,8 +203,11 @@ class PodcastRepository(
                         )
                     episodeDao.insertEpisode(newEpisode)
                     newEpisodes.add(newEpisode)
+                    consecutiveKnown = 0
                 } else if (existingEpisode != null) {
-                    break // Stop parsing older episodes as we already have this one
+                    // Point #5 fix: tolerate gaps from filtered Shorts/Lives
+                    consecutiveKnown++
+                    if (consecutiveKnown >= 3) break
                 }
             }
         } catch (e: Exception) {
@@ -211,17 +232,20 @@ class PodcastRepository(
     }
 
     private fun parseDate(dateStr: String): Long {
-        return try {
-            val format = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US)
-            format.parse(dateStr)?.time ?: System.currentTimeMillis()
-        } catch (e: Exception) {
+        // Point #8 fix: try ISO 8601 first (YouTube RSS), then RFC 2822 (classic RSS)
+        val formats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),  // ISO 8601 with colon offset
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US),    // ISO 8601 without colon
+            SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US), // RFC 2822 (podcasts)
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US)       // Fallback
+        )
+        for (format in formats) {
             try {
-                val format2 = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US)
-                format2.parse(dateStr)?.time ?: System.currentTimeMillis()
-            } catch (e2: Exception) {
-                System.currentTimeMillis()
-            }
+                val date = format.parse(dateStr)
+                if (date != null) return date.time
+            } catch (_: Exception) { }
         }
+        return System.currentTimeMillis()
     }
 
     private fun parseDuration(durationStr: String): Long {
@@ -280,6 +304,38 @@ class PodcastRepository(
             conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
             conn.setRequestProperty("Cookie", "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+438")
             return conn.responseCode == 200
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private fun isYouTubeLive(videoId: String): Boolean {
+        try {
+            val url = java.net.URL("https://www.youtube.com/watch?v=$videoId")
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+            conn.setRequestProperty("Cookie", "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=YES+cb.20210328-17-p0.en+FX+438")
+            conn.connectTimeout = 3000
+            conn.readTimeout = 3000
+            
+            conn.inputStream.use { stream ->
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, "UTF-8"))
+                val builder = StringBuilder()
+                val buffer = CharArray(4096)
+                // Read up to 2M chars of the page to find the live tags (VOD tags often appear after 600k chars)
+                while (builder.length < 2_000_000) {
+                    val read = reader.read(buffer)
+                    if (read == -1) break
+                    builder.append(buffer, 0, read)
+                }
+                val html = builder.toString()
+                return html.contains("\"isLive\":true") || 
+                       html.contains("\"isLiveStream\":true") || 
+                       html.contains("liveBroadcastDetails") || 
+                       html.contains("\"isUpcoming\":true") ||
+                       html.contains("isLiveBroadcast")
+            }
         } catch (e: Exception) {
             return false
         }
