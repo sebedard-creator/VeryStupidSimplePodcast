@@ -29,6 +29,8 @@ L'application est une application Android "podcast" robuste et hautement personn
 15. Intégration d'un dialogue au démarrage pour désactiver l'optimisation de batterie agressive (Samsung S23 Ultra) afin d'éviter le blocage de WorkManager.
 16. Mise à jour de la politique de planification en `ExistingPeriodicWorkPolicy.UPDATE` et suppression de la contrainte restrictive de batterie faible.
 17. Ajout d'une détection et exclusion automatique des vidéos en direct (Live / Direct), à venir (Upcoming Events), ET des rediffusions (VOD Replays) sur YouTube pour éviter de les proposer dans le flux.
+18. Augmentation du timeout réseau de 3s à 10s pour l'analyse HTML afin d'éviter l'ajout silencieux de vidéos en direct lors de ralentissements cellulaires.
+19. Ajout d'une logique de sélection intelligente (`AudioTrackType.ORIGINAL`) via NewPipeExtractor pour forcer la lecture de la piste audio originale et contourner les pistes audio "traduites par l'IA" de YouTube.
 
 ## Prochaines étapes suggérées
 - Créer l'icône de lancement de l'application (Launcher Icon) dans Android Studio en important l'image générée.

@@ -20,7 +20,7 @@
 - **Synchronisation d'État & Stabilité** :
   - **Heartbeat & True Duration** : Un *heartbeat* (lancé sur le `Dispatchers.Main` pour éviter les `IllegalStateException` d'ExoPlayer) enregistre la progression et la "durée réelle" de l'audio (`updateProgressAndDuration` via `Dispatchers.IO`) chaque 15 secondes. Cela corrige les erreurs de durée approximative des flux RSS.
   - **Fin de Lecture** : Lorsqu'un épisode se termine, la progression finale (100%) est sauvegardée *avant* que l'identifiant du média actif ne soit réinitialisé, garantissant l'intégrité des données.
-  - **Extraction JIT**: Pour les sources YouTube, l'URL de base est interceptée. Le `PodcastViewModel` extrait de manière asynchrone l'URL audio directe (`content`) depuis la page vidéo avant d'ordonner la lecture à ExoPlayer. Un indicateur visuel (Spinner) fait patienter l'interface pendant l'opération.
+  - **Extraction JIT intelligente**: Pour les sources YouTube, l'URL de base est interceptée. Le `PodcastViewModel` extrait de manière asynchrone l'URL audio directe (`content`) depuis la page vidéo avant d'ordonner la lecture à ExoPlayer. Le processus utilise la réflexion Java pour forcer la sélection de la piste audio originale (`AudioTrackType.ORIGINAL`) et ignorer les traductions par intelligence artificielle proposées par YouTube. Un indicateur visuel (Spinner) fait patienter l'interface pendant l'opération.
 
 ### UI Layer (Jetpack Compose)
 - **Modèle MVVM**: `PodcastViewModel` gère les états (`StateFlow`), incluant le `MediaController` de Media3 pour piloter le lecteur audio depuis l'interface et une coroutine de mise à jour fluide de la progression en direct.

@@ -178,7 +178,33 @@ class PodcastViewModel(application: Application) : AndroidViewModel(application)
                     extractor.fetchPage()
                     
                     val audioStreams = extractor.audioStreams
-                    val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+                    
+                    // Filter to find the original audio track (avoiding AI dubbed/translated tracks)
+                    val originalStreams = audioStreams.filter { stream ->
+                        var isOriginal = true
+                        try {
+                            // Try to check AudioTrackType enum (added in recent NewPipeExtractor versions)
+                            val trackType = stream.javaClass.getMethod("getAudioTrackType").invoke(stream)
+                            if (trackType != null) {
+                                isOriginal = trackType.toString().equals("ORIGINAL", ignoreCase = true)
+                            }
+                        } catch (e: Exception) {
+                            // Fallback to checking audioTrackId if trackType isn't available
+                            try {
+                                val trackId = stream.javaClass.getMethod("getAudioTrackId").invoke(stream) as? String
+                                if (!trackId.isNullOrEmpty() && trackId != "default" && trackId != "orig") {
+                                    isOriginal = false
+                                }
+                            } catch (ex: Exception) {
+                                // If methods don't exist, we keep the stream
+                            }
+                        }
+                        isOriginal
+                    }
+                    
+                    // Fallback to all streams if no original stream is found, then pick the highest bitrate
+                    val bestAudio = (if (originalStreams.isNotEmpty()) originalStreams else audioStreams)
+                        .maxByOrNull { it.averageBitrate }
                     
                     if (bestAudio != null) {
                         val directUrl = bestAudio.content

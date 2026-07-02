@@ -38,6 +38,8 @@
 - **Filtrage des Directs YouTube (Live Streams & VODs)** :
   - Ajout d'un système de détection et d'exclusion des vidéos en direct (Live en cours ou événements programmés à venir) lors de la synchronisation. L'application télécharge de manière ciblée la page de lecture et recherche les signatures spécifiques `"isLive":true` ou `"isUpcoming":true` pour ignorer ces flux incompatibles avec un format balado.
   - **Mise à jour VODs** : Augmentation de la limite de lecture HTML à 2 millions de caractères et ajout du tag `isLiveBroadcast` pour exclure également les rediffusions (replays/VODs) de diffusions en direct terminées.
+  - **Fiabilité Réseau** : Augmentation des délais d'attente (timeout) de 3 à 10 secondes lors de l'analyse des pages YouTube pour éviter que des coupures réseau ne provoquent des faux négatifs (ce qui ajoutait par erreur des directs en cas de timeout).
+  - **Pistes Audio Originales** : Ajout d'un filtre intelligent utilisant la réflexion (Reflection) sur NewPipeExtractor pour privilégier systématiquement la piste audio originale (`AudioTrackType.ORIGINAL`) et éviter la sélection accidentelle des pistes doublées ou traduites par l'IA de YouTube qui peuvent parfois avoir un "bitrate" plus élevé.
 - **Ergonomie des Notifications** : Liaison d'un `PendingIntent` (FLAG_IMMUTABLE) à la notification système pour ouvrir automatiquement la page d'accueil de l'application lors d'un clic.
 
 ### Fixed
